@@ -1,0 +1,34 @@
+---
+- hosts: all # comes from the hosts file
+  become: true # become sudo
+  gather_facts: false # save time and not gather info
+
+  tasks:
+    - name: set sudo password
+      set_fact:
+        ansible_sudo_pass: "{{ ansible_ssh_pass }}"
+
+    - name: copy war from Jenkins to target host
+      copy:
+        src: /var/lib/jenkins/workspace/Ouassila-Deploy-on-Container-using-Ansible/webapp/target/webapp.war
+        dest: /opt/docker/ouassila
+
+    - name: stop current container
+      command: docker stop ouassila-devops-container
+      ignore_errors: yes # in case container doesn't exist
+
+    - name: remove stopped container
+      command: docker rm ouassila-devops-container
+      ignore_errors: yes # in case container doesn't exist
+
+    - name: remove docker images 
+      command: docker rmi ouassila-devops-image:latest
+      ignore_errors: yes # in case image does not exist
+
+    - name: create docker image using war file
+      command: docker build -t ouassila-devops-image:latest .
+      args:
+        chdir: /opt/docker/ouassila
+
+    - name: run container from docker image
+      command: docker run -d --name ouassila-devops-container -p 8081:8080 ouassila-devops-image:latest
